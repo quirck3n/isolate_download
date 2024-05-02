@@ -1,176 +1,115 @@
-// import 'dart:async';
-// import 'dart:io';
-// import 'dart:isolate';
+import 'package:flutter/material.dart';
+import 'package:isolate_download/multi_isolate.dart';
 
-// import 'package:flutter/material.dart';
-// import 'package:dio/dio.dart';
-// import 'package:path_provider/path_provider.dart';
+void main() {
+  runApp(MyApp());
+}
 
-// void main() {
-//   runApp(MyApp());
-// }
+const downList = [
+  '1cem-arm64.apk',
+  'AndFTP%20(your%20FTP%20client)_6.3_Apkpure.apk',
+  'AnyDesk%20Remote%20Desktop_6.6.0_Apkpure.apk',
+  'Quick%20Printer%20(ESC%20POS%20Print)_1.7.3%20%e2%80%94%20%d0%ba%d0%be%d0%bf%d0%b8%d1%8f.apk',
+  'Quick%20Printer%20(ESC%20POS%20Print)_1.7.3.apk',
+  'apk/ZFPLabServer_1.7.4.apk',
+  'com.e1c.celmobile-arm.apk',
+];
 
-// class MyApp extends StatelessWidget {
-//   @override
-//   Widget build(BuildContext context) {
-//     return MaterialApp(
-//       title: 'Download Server Rust',
-//       theme: ThemeData(
-//         primarySwatch: Colors.blue,
-//       ),
-//       home: MyHomePage(),
-//     );
-//   }
-// }
+const String url = "http://192.168.1.100:8080/apk/";
 
-// class MyHomePage extends StatefulWidget {
-//   @override
-//   _MyHomePageState createState() => _MyHomePageState();
-// }
+class MyApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Download Server Rust',
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+      ),
+      home: MyHomePage(),
+    );
+  }
+}
 
-// class _MyHomePageState extends State<MyHomePage> {
-//   final IsolateTemplate _isolateTemplate = IsolateTemplate(
-//     savePath: "/",
-//     url: "http://192.168.1.100:8080/apk/com.e1c.celmobile-arm.apk",
-//     name: "com.e1c.celmobile-arm.apk",
-//   );
-//   int isDowload = -2;
+class MyHomePage extends StatefulWidget {
+  @override
+  _MyHomePageState createState() => _MyHomePageState();
+}
 
-//   @override
-//   void initState() {
-//     super.initState();
-//   }
+class _MyHomePageState extends State<MyHomePage> {
+  final List<String> _taskIds = [];
+  final Map<String, String> _maps = {};
+  final IsolateTemplateMultiple _isolateService = IsolateTemplateMultiple();
+  var _interator = 0;
 
-//   @override
-//   void dispose() {
-//     _isolateTemplate.kill();
-//     super.dispose();
-//   }
+  void _startDownload() {
+    var path = "/";
+    final id = _isolateService.addTask(
+        url + downList[_interator], path, downList[_interator]);
+    _maps[id] = downList[_interator];
+    _interator += 1;
+    if (downList.length == _interator) {
+      _interator = 0;
+    }
+    setState(() {
+      _taskIds.add(id);
+    });
+    // if (url.isNotEmpty && name.isNotEmpty) {
+    //   final IsolateMessageM message = IsolateMessageM(
+    //       id: const Uuid().v4(), url: url, name: name, savePath: "/");
+    //   final taskId = _isolateTemplate.addTask(message);
+    //   setState(() {
+    //     _taskIds.add(taskId);
+    //   });
+    // }
+  }
 
-//   void _startDownload() {
-//     _isolateTemplate.init();
-//     setState(() {
-//       isDowload = -1;
-//     });
-
-//     reloadIcon();
-//   }
-
-//   Future<void> reloadIcon() async {
-//     isDowload = await _isolateTemplate.isFileDownloaded ? 1 : 0;
-//     setState(() {});
-//   }
-
-//   @override
-//   Widget build(BuildContext context) {
-//     return Scaffold(
-//       appBar: AppBar(
-//         title: Text('Download Server Rust'),
-//       ),
-//       body: Center(
-//         child: Column(
-//           mainAxisAlignment: MainAxisAlignment.center,
-//           children: <Widget>[
-//             if (isDowload == -1)
-//               const CircularProgressIndicator()
-//             else if (isDowload == -2)
-//               Container()
-//             else if (isDowload == 0)
-//               const Icon(Icons.close)
-//             else
-//               const Icon(Icons.done),
-//           ],
-//         ),
-//       ),
-//       floatingActionButton: FloatingActionButton(
-//         onPressed: () => _startDownload(),
-//         tooltip: 'Start Download',
-//         child: Icon(Icons.cloud_download),
-//       ),
-//     );
-//   }
-// }
-
-// // class _IsolateMessage {
-// //   final String url;
-// //   final String savePath;
-
-// //   _IsolateMessage(this.url, this.savePath);
-// // }
-
-// class IsolateTemplate {
-//   final String url;
-//   final String savePath;
-//   final String name;
-//   final ReceivePort _receivePort = ReceivePort();
-//   Isolate? _isolate;
-//   late Completer<bool> _downloadCompleter;
-
-//   IsolateTemplate(
-//       {required this.url, required this.savePath, required this.name}) {
-//     _downloadCompleter = Completer<bool>();
-//   }
-
-//   void init() {
-//     _startIsolate();
-//   }
-
-//   void _startIsolate() async {
-//     _isolate = await Isolate.spawn(_downloadInIsolate, _receivePort.sendPort);
-//     _receivePort.listen((dynamic data) async {
-//       if (data is double) {
-//         // Progress update, do nothing for now
-//       } else if (data is bool) {
-//         // Download completion signal received
-//         _downloadCompleter.complete(data);
-//       } else if (data is SendPort) {
-//         Directory savePath2 = await getApplicationCacheDirectory();
-//         // Download completion signal received
-//         data.send(
-//             _IsolateMessage(url: url, savePath: savePath2.path, name: name));
-//       }
-//     });
-//   }
-
-//   static void _downloadInIsolate(SendPort sendPort) async {
-//     final receivePort = ReceivePort();
-
-//     sendPort.send(receivePort.sendPort);
-
-//     receivePort.listen((dynamic data) async {
-//       if (data is _IsolateMessage) {
-//         final _IsolateMessage message = data;
-//         final dio = Dio();
-
-//         try {
-//           await dio.download(
-//               message.url, "${message.savePath}+/+${message.name}");
-//           sendPort.send(true); // Signal download completion
-//         } catch (e) {
-//           print('Error during download: $e');
-//           sendPort.send(false); // Signal download failure
-//         }
-//       }
-//     });
-//   }
-
-//   Future<bool> get isFileDownloaded async {
-//     return _downloadCompleter.future;
-//   }
-
-//   void kill() {
-//     _receivePort.close();
-//     if (_isolate != null) {
-//       _isolate!.kill(priority: Isolate.immediate);
-//     }
-//   }
-// }
-
-// class _IsolateMessage {
-//   final String url;
-//   final String savePath;
-//   final String name;
-
-//   _IsolateMessage(
-//       {required this.url, required this.savePath, required this.name});
-// }
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Download Server Rust'),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            ElevatedButton(
+              onPressed: _startDownload,
+              child: const Text('Start Download'),
+            ),
+            const SizedBox(height: 20),
+            Expanded(
+              child: ListView.builder(
+                itemCount: _taskIds.length,
+                itemBuilder: (context, index) {
+                  final taskId = _taskIds[index];
+                  return FutureBuilder<bool>(
+                    future: _isolateService.isDownloaded(taskId),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return ListTile(
+                          title: Text('Task $taskId ${_maps[taskId]}'),
+                          subtitle: const Text('Downloading...'),
+                        );
+                      } else if (snapshot.hasError || !snapshot.data!) {
+                        return ListTile(
+                          title: Text('Task $taskId ${_maps[taskId]}'),
+                          subtitle: const Text('Download failed'),
+                        );
+                      } else {
+                        return ListTile(
+                          title: Text('Task $taskId ${_maps[taskId]}'),
+                          subtitle: const Text('Download succeeded'),
+                        );
+                      }
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
